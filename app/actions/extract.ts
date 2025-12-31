@@ -4,6 +4,7 @@ import Replicate from "replicate";
 import { promises as fs } from "fs";
 import path from "path";
 import crypto from "crypto";
+import { headers } from "next/headers";
 
 export type ExtractedPayload = Record<string, any>;
 
@@ -58,9 +59,9 @@ export async function extractAction(formData: FormData): Promise<ExtractResponse
   
   if (!publicBase) {
     // Fallback: detectar dominio actual desde headers
-    const headers = await import("next/headers").then(m => m.headers());
-    const host = headers.get("host");
-    const protocol = headers.get("x-forwarded-proto") || "https";
+    const headersList = headers();
+    const host = headersList.get("host");
+    const protocol = headersList.get("x-forwarded-proto") || "https";
     publicBase = host ? `${protocol}://${host}` : undefined;
     console.log("[extractAction] PUBLIC_BASE_URL no configurado, usando dominio detectado:", publicBase);
   } else {
