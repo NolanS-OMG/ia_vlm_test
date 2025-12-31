@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: vlm-poc
+    runtime: node
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: REPLICATE_API_TOKEN
+        sync: false
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false
