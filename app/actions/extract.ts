@@ -53,15 +53,26 @@ export async function extractAction(formData: FormData): Promise<ExtractResponse
   console.log("[extractAction] Blob", { type: blob.type, size: blob.size });
 
   // Estrategia de URL de imagen para Replicate:
-  // - Es obligatorio PUBLIC_BASE_URL para generar una URL pública accesible por Replicate
-  const publicBase = process.env.PUBLIC_BASE_URL;
-  console.log("[extractAction] PUBLIC_BASE_URL", safeString(publicBase));
+  // - Intentar PUBLIC_BASE_URL, si no existe detectar el dominio actual
+  let publicBase = process.env.PUBLIC_BASE_URL;
+  
   if (!publicBase) {
-    console.error("[extractAction] Falta PUBLIC_BASE_URL para exponer imagen públicamente a Replicate");
-    throw new Error("Configura PUBLIC_BASE_URL apuntando a tu dominio público (ej: https://<tunnel>.ngrok.io)");
+    // Fallback: detectar dominio actual desde headers
+    const headers = await import("next/headers").then(m => m.headers());
+    const host = headers.get("host");
+    const protocol = headers.get("x-forwarded-proto") || "https";
+    publicBase = host ? `${protocol}://${host}` : undefined;
+    console.log("[extractAction] PUBLIC_BASE_URL no configurado, usando dominio detectado:", publicBase);
+  } else {
+    console.log("[extractAction] PUBLIC_BASE_URL configurado:", safeString(publicBase));
   }
 
-  console.log("[extractAction] PUBLIC_BASE_URL presente, generando URL temporal local");
+  if (!publicBase) {
+    console.error("[extractAction] No se pudo determinar la URL base");
+    throw new Error("No se pudo determinar la URL pública. Configura PUBLIC_BASE_URL");
+  }
+
+  console.log("[extractAction] Generando URL temporal local");
   console.time("[local-save]");
   const ext = guessExt(fileObj.type) || ".bin";
   const rand = crypto.randomUUID().replace(/-/g, "");
