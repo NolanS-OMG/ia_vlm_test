@@ -8,7 +8,10 @@ export const metadata: Metadata = {
   title: "Demo Técnica | Extracción Inteligente de Datos con IA Visual",
   description: "Demostración técnica de sistema de análisis visual automatizado mediante inteligencia artificial. Extracción estructurada de datos desde imágenes.",
   metadataBase: new URL("https://example.com"),
-  robots: { index: false }
+  robots: { index: false },
+  verification: {
+    google: "GTYI6KfRxeuuhm5xi-iWCinSpCjdkHQmDMdSHSr6Mqg"
+  }
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
