@@ -1,9 +1,6 @@
 "use server";
 
 import Replicate from "replicate";
-import { promises as fs } from "fs";
-import path from "path";
-import crypto from "crypto";
 import { unstable_noStore as noStore } from "next/cache";
 
 export type ExtractedPayload = Record<string, any>;
@@ -56,28 +53,14 @@ export async function extractAction(formData: FormData): Promise<ExtractResponse
   const blob = new Blob([new Uint8Array(buffer)], { type: fileObj.type || "application/octet-stream" });
   console.log("[extractAction] Blob", { type: blob.type, size: blob.size });
 
-  // Estrategia de URL de imagen para Replicate
-  const publicBase = process.env.PUBLIC_BASE_URL;
-  
-  if (!publicBase) {
-    console.error("[extractAction] Falta PUBLIC_BASE_URL en variables de entorno");
-    throw new Error("PUBLIC_BASE_URL no configurado. Configúralo en Render con tu URL (ej: https://tu-app.onrender.com)");
-  }
-  
-  console.log("[extractAction] Usando PUBLIC_BASE_URL:", publicBase.substring(0, 30) + "...");
-
-  console.log("[extractAction] Generando URL temporal local");
-  console.time("[local-save]");
-  const ext = guessExt(fileObj.type) || ".bin";
-  const rand = crypto.randomUUID().replace(/-/g, "");
-  const localName = `${rand}${ext}`;
-  const uploadsDir = path.join(process.cwd(), "public", "uploads");
-  await fs.mkdir(uploadsDir, { recursive: true });
-  const localPath = path.join(uploadsDir, localName);
-  await fs.writeFile(localPath, buffer);
-  const uploadUrl = joinUrl(publicBase, `/uploads/${localName}`);
-  console.log("[extractAction] Imagen guardada temporalmente", { localPath, uploadUrl });
-  console.timeEnd("[local-save]");
+  // Estrategia: Convertir a Data URI (base64) para enviar directamente a Replicate
+  // Esto evita problemas de acceso público a archivos en Render/Netlify
+  console.time("[base64-encode]");
+  const base64 = buffer.toString("base64");
+  const mimeType = fileObj.type || "image/jpeg";
+  const dataUri = `data:${mimeType};base64,${base64}`;
+  console.log("[extractAction] Data URI generado", { mimeType, sizeKB: Math.round(dataUri.length / 1024) });
+  console.timeEnd("[base64-encode]");
 
   const model = "openai/gpt-4.1-mini";
 
@@ -106,7 +89,7 @@ export async function extractAction(formData: FormData): Promise<ExtractResponse
   try {
     const input = {
       prompt,
-      image_input: [uploadUrl],
+      image_input: [dataUri], // Usar Data URI en lugar de URL pública
       system_prompt
     };
     
@@ -127,13 +110,6 @@ export async function extractAction(formData: FormData): Promise<ExtractResponse
   const endTime = Date.now();
   const processingTimeMs = endTime - startTime;
 
-  // Limpieza de archivo temporal
-  try {
-    await fs.unlink(path.join(process.cwd(), "public", "uploads", localName));
-    console.log("[extractAction] Archivo temporal eliminado", { localPath });
-  } catch (err) {
-    console.warn("[extractAction] No se pudo eliminar temporal", err);
-  }
   let parsed: any = modelOutput;
   try {
     if (typeof modelOutput === "string") {
@@ -161,35 +137,5 @@ function preview(value: unknown) {
     return str && str.length > 500 ? str.slice(0, 500) + "..." : str;
   } catch {
     return "[no-serializable]";
-  }
-}
-
-function safeString(value: any) {
-  try {
-    if (typeof value === "string") return value;
-    return JSON.stringify(value);
-  } catch {
-    return String(value);
-  }
-}
-
-function guessExt(mime?: string) {
-  if (!mime) return null;
-  const map: Record<string, string> = {
-    "image/jpeg": ".jpg",
-    "image/png": ".png",
-    "image/webp": ".webp",
-    "image/gif": ".gif",
-    "image/bmp": ".bmp"
-  };
-  return map[mime] || null;
-}
-
-function joinUrl(base: string, p: string) {
-  try {
-    const u = new URL(base);
-    return new URL(p, u).toString();
-  } catch {
-    return `${base}${p}`;
   }
 }
