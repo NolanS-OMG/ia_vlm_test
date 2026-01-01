@@ -4,7 +4,6 @@ import Replicate from "replicate";
 import { promises as fs } from "fs";
 import path from "path";
 import crypto from "crypto";
-import { headers } from "next/headers";
 
 export type ExtractedPayload = Record<string, any>;
 
@@ -53,25 +52,15 @@ export async function extractAction(formData: FormData): Promise<ExtractResponse
   const blob = new Blob([new Uint8Array(buffer)], { type: fileObj.type || "application/octet-stream" });
   console.log("[extractAction] Blob", { type: blob.type, size: blob.size });
 
-  // Estrategia de URL de imagen para Replicate:
-  // - Intentar PUBLIC_BASE_URL, si no existe detectar el dominio actual
-  let publicBase = process.env.PUBLIC_BASE_URL;
+  // Estrategia de URL de imagen para Replicate
+  const publicBase = process.env.PUBLIC_BASE_URL;
   
   if (!publicBase) {
-    // Fallback: detectar dominio actual desde headers
-    const headersList = headers();
-    const host = headersList.get("host");
-    const protocol = headersList.get("x-forwarded-proto") || "https";
-    publicBase = host ? `${protocol}://${host}` : undefined;
-    console.log("[extractAction] PUBLIC_BASE_URL no configurado, usando dominio detectado:", publicBase);
-  } else {
-    console.log("[extractAction] PUBLIC_BASE_URL configurado:", safeString(publicBase));
+    console.error("[extractAction] Falta PUBLIC_BASE_URL en variables de entorno");
+    throw new Error("PUBLIC_BASE_URL no configurado. Configúralo en Render con tu URL (ej: https://tu-app.onrender.com)");
   }
-
-  if (!publicBase) {
-    console.error("[extractAction] No se pudo determinar la URL base");
-    throw new Error("No se pudo determinar la URL pública. Configura PUBLIC_BASE_URL");
-  }
+  
+  console.log("[extractAction] Usando PUBLIC_BASE_URL:", publicBase.substring(0, 30) + "...");
 
   console.log("[extractAction] Generando URL temporal local");
   console.time("[local-save]");
