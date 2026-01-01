@@ -4,6 +4,7 @@ import Replicate from "replicate";
 import { promises as fs } from "fs";
 import path from "path";
 import crypto from "crypto";
+import { unstable_noStore as noStore } from "next/cache";
 
 export type ExtractedPayload = Record<string, any>;
 
@@ -15,6 +16,9 @@ export type ExtractResponse = {
 };
 
 export async function extractAction(formData: FormData): Promise<ExtractResponse> {
+  // Evitar que Next.js cachee esta función y sus variables de entorno
+  noStore();
+  
   console.log("[extractAction] Inicio");
 
   const replicateToken = process.env.REPLICATE_API_TOKEN;
